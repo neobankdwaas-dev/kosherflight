@@ -95,7 +95,7 @@ export default function SearchForm() {
       </form>
       {results && results.results && (
         <div className="mt-4">
-          <ResultsGrid results={results.results} />
+          <ResultsGrid results={results.results} filters={{ shabbat, diet }} />
         </div>
       )}
     </div>
