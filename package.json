@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev:backend": "ts-node-dev --respawn backend/server.ts",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
