@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import ResultsGrid from './ResultsGrid';
 
 interface Leg {
   from: string;
@@ -92,10 +93,10 @@ export default function SearchForm() {
           {loading ? 'Searching…' : 'Search'}
         </button>
       </form>
-      {results && (
-        <pre className="mt-4 bg-gray-100 p-2 rounded overflow-x-auto text-sm">
-          {JSON.stringify(results, null, 2)}
-        </pre>
+      {results && results.results && (
+        <div className="mt-4">
+          <ResultsGrid results={results.results} />
+        </div>
       )}
     </div>
   );
