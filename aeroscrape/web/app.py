@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from aeroscrape.models import FlightQuery, CabinClass
 from aeroscrape.scrapers.engine import AeroScrapeEngine
@@ -205,7 +205,18 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 def serve_index():
-    index_path = os.path.join(STATIC_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"message": "AeroScrape API running. Use /api/search to query flights."}
+    """Serves the interactive HTML dashboard on Vercel and local environments."""
+    candidates = [
+        os.path.join(STATIC_DIR, "index.html"),
+        os.path.join(os.getcwd(), "aeroscrape", "web", "static", "index.html"),
+        os.path.join(os.getcwd(), "public", "index.html"),
+        os.path.join(os.getcwd(), "sample_dashboard.html")
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return HTMLResponse(content=f.read())
+            except Exception:
+                return FileResponse(path)
+    return {"message": "AeroScrape API is active on Vercel! Try /api/search or /api/affiliate/status"}
