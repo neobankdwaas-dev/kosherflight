@@ -1,0 +1,10 @@
+{
+  "name": "aeroscrape-kosher-flight-engine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AeroScrape Python Serverless Engine for Vercel",
+  "scripts": {
+    "build": "echo 'AeroScrape Python Serverless Build Successful!'",
+    "vercel-build": "echo 'AeroScrape Python Serverless Build Successful!'"
+  }
+}
