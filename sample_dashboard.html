@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroScrape - Flight Price Scraper & Jewish Travel Compliance Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        },
+                        kosher: '#10b981',
+                        shabbos: '#6366f1'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        body { background-color: #020617; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+        .autocomplete-dropdown {
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans custom-scrollbar" onclick="closeAllDropdowns(event)">
+
+    <!-- Header / Navbar -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent">AeroScrape</h1>
+                    <p class="text-xs text-slate-400">Flight Price Scraper • Shabbos Alerts • Kosher KSML Guide</p>
+                </div>
+            </div>
+            <nav class="flex space-x-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700">
+                <button onclick="switchTab('search')" id="tab-search" class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-sky-600 text-white shadow">
+                    ✈️ Flight Search
+                </button>
+                <button onclick="switchTab('shabbos')" id="tab-shabbos" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white">
+                    🕯️ Shabbos Zmanim
+                </button>
+                <button onclick="switchTab('kosher')" id="tab-kosher" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white">
+                    🥗 Kosher Airlines Guide
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+
+        <!-- TAB 1: FLIGHT SEARCH & SCRAPER DASHBOARD -->
+        <section id="section-search" class="space-y-8">
+            <!-- Search & Filter Form Bar -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+                <!-- TRIP TYPE PICKER (Segmented Control) -->
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div class="flex bg-slate-800/80 p-1 rounded-xl border border-slate-700 space-x-1">
+                        <button type="button" onclick="setTripType('one_way')" id="btn-trip-one" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-300 hover:text-white">
+                            → One-Way
+                        </button>
+                        <button type="button" onclick="setTripType('round_trip')" id="btn-trip-round" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-sky-600 text-white shadow">
+                            ⇆ Round-Trip
+                        </button>
+                        <button type="button" onclick="setTripType('multi_city')" id="btn-trip-multi" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-300 hover:text-white">
+                            ↗↘ Multi-City
+                        </button>
+                    </div>
+                    <div class="text-xs text-slate-400 hidden sm:block">
+                        Scraping <span class="text-sky-400 font-semibold">Google Flights</span> • <span class="text-sky-400 font-semibold">Skyscanner</span> • <span class="text-sky-400 font-semibold">Direct Airlines</span>
+                    </div>
+                </div>
+
+                <!-- Standard One-Way / Round-Trip Fields -->
+                <div id="standard-fields" class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <!-- Origin Input with Autocomplete -->
+                    <div class="relative" id="origin-wrapper">
+                        <label class="block text-xs font-medium text-slate-400 mb-1">ORIGIN AIRPORT / CITY</label>
+                        <input type="text" id="input-origin" value="NYC" autocomplete="off"
+                               oninput="handleAutocomplete('origin', this.value)"
+                               onfocus="handleAutocomplete('origin', this.value)"
+                               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none uppercase" 
+                               placeholder="e.g. NYC, JFK, London">
+                        <div id="dropdown-origin" class="autocomplete-dropdown hidden absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl divide-y divide-slate-800/60 custom-scrollbar"></div>
+                    </div>
+
+                    <!-- Destination Input with Autocomplete -->
+                    <div class="relative" id="dest-wrapper">
+                        <label class="block text-xs font-medium text-slate-400 mb-1">DESTINATION</label>
+                        <input type="text" id="input-dest" value="TLV" autocomplete="off"
+                               oninput="handleAutocomplete('dest', this.value)"
+                               onfocus="handleAutocomplete('dest', this.value)"
+                               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none uppercase" 
+                               placeholder="e.g. TLV, LON, Paris">
+                        <div id="dropdown-dest" class="autocomplete-dropdown hidden absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl divide-y divide-slate-800/60 custom-scrollbar"></div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">DEPARTURE DATE</label>
+                        <input type="date" id="input-date" value="2026-08-14" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none" onchange="runSearch()">
+                    </div>
+
+                    <!-- Return Date (Only shown for round_trip) -->
+                    <div id="return-date-wrapper">
+                        <label class="block text-xs font-medium text-slate-400 mb-1">RETURN DATE</label>
+                        <input type="date" id="input-return-date" value="2026-08-23" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none" onchange="runSearch()">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">CABIN CLASS</label>
+                        <select id="input-cabin" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-medium" onchange="runSearch()">
+                            <option value="economy">Economy</option>
+                            <option value="premium_economy">Premium Economy</option>
+                            <option value="business">Business Class</option>
+                            <option value="first">First Class</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">PASSENGERS</label>
+                        <input type="number" id="input-pax" value="1" min="1" max="9" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-medium" onchange="runSearch()">
+                    </div>
+                </div>
+
+                <!-- Multi-City Legs Builder (Hidden by default, shown for multi_city) -->
+                <div id="multi-city-fields" class="hidden space-y-3">
+                    <div class="text-xs font-bold text-slate-400 uppercase tracking-wide">Multi-City Hops Itinerary</div>
+                    <div id="multi-legs-container" class="space-y-2">
+                        <!-- Rows inserted dynamically -->
+                    </div>
+                    <div class="flex items-center justify-between pt-2">
+                        <button type="button" onclick="addMultiCityLeg()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-bold border border-slate-700 flex items-center space-x-1 transition">
+                            <span>+ Add Flight Hop</span>
+                        </button>
+                        <div class="flex items-center space-x-4">
+                            <div>
+                                <label class="text-xs font-medium text-slate-400 mr-2">CABIN:</label>
+                                <select id="multi-cabin" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1 text-white text-xs" onchange="runSearch()">
+                                    <option value="economy">Economy</option>
+                                    <option value="premium_economy">Premium Economy</option>
+                                    <option value="business">Business Class</option>
+                                    <option value="first">First Class</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-slate-400 mr-2">PAX:</label>
+                                <input type="number" id="multi-pax" value="1" min="1" max="9" class="w-16 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white text-xs" onchange="runSearch()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scrape Button Bar -->
+                <div class="pt-2">
+                    <button type="button" onclick="runSearch()" class="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold py-3 px-4 rounded-xl transition shadow-lg shadow-sky-500/25 flex items-center justify-center space-x-2">
+                        <span>Scrape Lowest Fares Across Providers</span>
+                    </button>
+                </div>
+
+                <!-- Custom Jewish Travel Compliance Controls -->
+                <div class="pt-4 mt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4 text-sm">
+                        <div class="flex items-center space-x-6">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" id="input-filter-shabbos" class="rounded bg-slate-800 border-slate-600 text-sky-500 focus:ring-sky-500" onchange="applyFilters()">
+                                <span class="text-slate-300 font-medium">Hide Shabbos Violations <span class="text-xs text-slate-500">(Arrive after candle lighting)</span></span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" id="input-require-ksml" class="rounded bg-slate-800 border-slate-600 text-sky-500 focus:ring-sky-500" onchange="applyFilters()">
+                                <span class="text-slate-300 font-medium">Require Kosher Meal <span class="text-xs text-slate-500">(KSML offered)</span></span>
+                            </label>
+                        </div>
+                    <div class="flex items-center space-x-3">
+                        <span class="text-slate-400 text-xs font-semibold uppercase">Shabbos Safety Buffer:</span>
+                        <input type="range" id="input-buffer" min="1" max="6" step="0.5" value="3.0" class="w-24 accent-sky-500" oninput="document.getElementById('buffer-val').textContent = this.value + ' hrs'; applyFilters();">
+                        <span id="buffer-val" class="text-sky-400 font-bold text-xs">3.0 hrs</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AUTOMATED LEAD CAPTURE: FARE DROP ALERTS BOX -->
+            <div class="bg-gradient-to-r from-sky-900/40 to-indigo-900/40 border border-sky-500/30 rounded-2xl p-5 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="text-2xl">🔔</div>
+                    <div>
+                        <h4 class="font-bold text-white text-sm">Automated Passover & Yom Tov Fare Alert Lead Capture</h4>
+                        <p class="text-xs text-slate-300">Get notified instantly when Shabbat-safe & Kosher fares drop for your route.</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 w-full md:w-auto">
+                    <input type="email" id="alert-email" placeholder="enter your email..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-xs w-full md:w-48">
+                    <select id="alert-period" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white text-xs">
+                        <option value="Passover (Pesach) 2027">Passover 2027</option>
+                        <option value="Sukkot 2026">Sukkot 2026</option>
+                        <option value="Summer Israel 2026">Summer Israel</option>
+                    </select>
+                    <button type="button" onclick="subscribeToAlerts()" class="bg-sky-500 hover:bg-sky-400 text-white font-bold px-4 py-1.5 rounded-lg text-xs transition whitespace-nowrap">
+                        Subscribe Free
+                    </button>
+                </div>
+            </div>
+
+            <!-- DELAY RISK & DYNAMIC HALACHIC BUFFER BANNER -->
+            <div id="delay-risk-banner" class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-xs text-amber-200 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="text-base">⚠️</span>
+                    <span id="delay-risk-text" class="font-medium">Historical NYC-TLV delay rate is 28.5%. Recommended Halachic safety buffer automatically elevated to 4.0 hours (Friday afternoon taxi congestion).</span>
+                </div>
+                <span id="delay-risk-level" class="px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 uppercase">HIGH RISK</span>
+            </div>
+
+            <!-- KPI Banner -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="kpi-banner">
+                <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl text-center">
+                    <span class="text-xs text-slate-400 block font-semibold">CHEAPEST FARE</span>
+                    <span class="text-xl font-black text-emerald-400" id="stat-cheapest">$533.81</span>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl text-center">
+                    <span class="text-xs text-slate-400 block font-semibold">AVERAGE FARE</span>
+                    <span class="text-xl font-black text-white" id="stat-avg">$600.06</span>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl text-center">
+                    <span class="text-xs text-slate-400 block font-semibold">SHABBOS SAFE</span>
+                    <span class="text-xl font-black text-indigo-400" id="stat-safe">11 Options</span>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl text-center">
+                    <span class="text-xs text-slate-400 block font-semibold">KOSHER MEALS</span>
+                    <span class="text-xl font-black text-emerald-400" id="stat-kosher">13 Airlines</span>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl text-center">
+                    <span class="text-xs text-slate-400 block font-semibold">META-SCRAPE TIME</span>
+                    <span class="text-xl font-black text-sky-400" id="stat-time">3.37 ms</span>
+                </div>
+            </div>
+
+            <!-- 7-Day Flexible Price Grid -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="font-bold text-white">7-Day Flexible Price Grid</h3>
+                        <p class="text-xs text-slate-400" id="trend-summary">Fares on 2026-08-14 are ~22% below average for JFK-TLV.</p>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Great Deal</span>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2" id="date-grid-container">
+                    <!-- Loaded via JS -->
+                </div>
+            </div>
+
+            <!-- Header & Sort -->
+            <div class="flex items-center justify-between">
+                <div class="text-sm text-slate-400">
+                    Showing <span id="flight-count" class="text-white font-bold">13</span> verified flight itineraries (<span id="current-trip-label" class="text-sky-400 font-semibold">Round-Trip</span>)
+                </div>
+                <div class="flex items-center space-x-2 text-sm">
+                    <span class="text-slate-400">Sort By:</span>
+                    <select id="sort-select" onchange="sortFlights(this.value)" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white">
+                        <option value="price">Cheapest Price First</option>
+                        <option value="score">Best Value Score</option>
+                        <option value="duration">Fastest Duration</option>
+                        <option value="shabbos">Shabbos-Safe First</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Flights List -->
+            <div id="flights-list" class="space-y-4">
+                <!-- Loaded via JS -->
+            </div>
+        </section>
+
+        <!-- TAB 2: SHABBOS & ZMANIM CALCULATOR -->
+        <section id="section-shabbos" class="hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <h2 class="text-2xl font-bold text-white mb-2">Shabbos & Yom Tov Travel Calculator</h2>
+                <p class="text-sm text-slate-400 mb-6">Calculate precise astronomical Sunset, Candle Lighting (18-40m offset), and Havdalah times for origin and destination airports to prevent Chilul Shabbos.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">AIRPORT CODE</label>
+                        <select id="zmanim-airport" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-medium uppercase" onchange="loadZmanim()">
+                            <option value="TLV">TLV - Tel Aviv, Israel (Ben Gurion)</option>
+                            <option value="JFK">JFK - New York, USA (JFK Int'l)</option>
+                            <option value="EWR">EWR - Newark, USA (Newark Liberty)</option>
+                            <option value="LHR">LHR - London, UK (Heathrow)</option>
+                            <option value="FRA">FRA - Frankfurt, Germany</option>
+                            <option value="CDG">CDG - Paris, France (Charles de Gaulle)</option>
+                            <option value="LAX">LAX - Los Angeles, USA</option>
+                            <option value="MIA">MIA - Miami, USA</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">TARGET DATE</label>
+                        <input type="date" id="zmanim-date" value="2026-08-14" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-medium" onchange="loadZmanim()">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="loadZmanim()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-2 px-4 rounded-lg transition">
+                            Calculate Zmanim
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Zmanim Results Display -->
+                <div id="zmanim-result-card" class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-950/60 p-6 rounded-xl border border-slate-800">
+                    <div class="text-center">
+                        <span class="text-xs text-slate-400 block mb-1">AIRPORT LOCATION</span>
+                        <span class="text-xl font-bold text-white" id="zm-city">Tel Aviv (TLV)</span>
+                        <span class="text-xs text-slate-500 block" id="zm-country">Israel</span>
+                    </div>
+                    <div class="text-center">
+                        <span class="text-xs text-slate-400 block mb-1">SUNSET (UTC)</span>
+                        <span class="text-xl font-bold text-amber-400" id="zm-sunset">16:52 UTC</span>
+                        <span class="text-xs text-slate-500 block">Astronomical Horizon</span>
+                    </div>
+                    <div class="text-center">
+                        <span class="text-xs text-slate-400 block mb-1">CANDLE LIGHTING (UTC)</span>
+                        <span class="text-xl font-bold text-emerald-400" id="zm-candle">16:32 UTC</span>
+                        <span class="text-xs text-slate-500 block">Shabbos Starts (-20m)</span>
+                    </div>
+                    <div class="text-center">
+                        <span class="text-xs text-slate-400 block mb-1">HAVDALAH (UTC)</span>
+                        <span class="text-xl font-bold text-indigo-400" id="zm-havdalah">17:42 UTC</span>
+                        <span class="text-xs text-slate-500 block">Shabbos Ends (+50m)</span>
+                    </div>
+                </div>
+
+                <div class="mt-6 bg-slate-800/40 p-4 rounded-xl border border-slate-700/60 text-sm space-y-2">
+                    <h4 class="font-bold text-white">Halachic Travel Buffer Guidelines:</h4>
+                    <p class="text-slate-300">✔ <span class="font-semibold text-emerald-400">Friday Arrival Buffer:</span> Observant Jewish travelers should plan to arrive at their destination at least <strong>3 hours</strong> before Candle Lighting to account for flight delays, baggage retrieval, and transit to accommodations.</p>
+                    <p class="text-slate-300">✔ <span class="font-semibold text-indigo-400">Motzei Shabbos Departure:</span> Avoid booking flights that depart within 90 minutes of Havdalah so that airport check-in and transit do not occur during Shabbos.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: KOSHER AIRLINES GUIDE -->
+        <section id="section-kosher" class="hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">Airline Kosher Meal (KSML & SKML) Master Directory</h2>
+                        <p class="text-sm text-slate-400">Complete 2026 kashrut supervision, lead times, and Mehadrin Badatz availability by carrier.</p>
+                    </div>
+                    <input type="text" id="filter-airline-text" oninput="filterKosherTable(this.value)" placeholder="Search airline or hechsher..." class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm">
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase">
+                                <th class="py-3 px-4">Airline</th>
+                                <th class="py-3 px-4">KSML Offered</th>
+                                <th class="py-3 px-4">Mehadrin SKML</th>
+                                <th class="py-3 px-4">Advance Notice</th>
+                                <th class="py-3 px-4">Supervision / Hechsher</th>
+                                <th class="py-3 px-4">Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody id="kosher-tbody" class="divide-y divide-slate-800 text-sm">
+                            <!-- Loaded via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Complete Embedded Database of Cities & Airports for Standalone Client-Side Autocomplete
+        const CLIENT_AIRPORTS_DB = [
+            { code: "NYC", city: "New York", country: "USA", name: "All Airports (JFK, EWR, LGA)", type: "city", members: ["JFK", "EWR", "LGA"] },
+            { code: "JFK", city: "New York", country: "USA", name: "John F. Kennedy International Airport", type: "airport", members: ["JFK"] },
+            { code: "EWR", city: "Newark", country: "USA", name: "Newark Liberty International Airport", type: "airport", members: ["EWR"] },
+            { code: "LGA", city: "New York", country: "USA", name: "LaGuardia Airport", type: "airport", members: ["LGA"] },
+            { code: "LON", city: "London", country: "UK", name: "All Airports (LHR, LGW)", type: "city", members: ["LHR", "LGW"] },
+            { code: "LHR", city: "London", country: "UK", name: "Heathrow Airport", type: "airport", members: ["LHR"] },
+            { code: "LGW", city: "London", country: "UK", name: "Gatwick Airport", type: "airport", members: ["LGW"] },
+            { code: "PAR", city: "Paris", country: "France", name: "All Airports (CDG, ORY)", type: "city", members: ["CDG", "ORY"] },
+            { code: "CDG", city: "Paris", country: "France", name: "Charles de Gaulle Airport", type: "airport", members: ["CDG"] },
+            { code: "ORY", city: "Paris", country: "France", name: "Orly Airport", type: "airport", members: ["ORY"] },
+            { code: "TLV", city: "Tel Aviv", country: "Israel", name: "Ben Gurion Airport", type: "airport", members: ["TLV"] },
+            { code: "ETH", city: "Eilat", country: "Israel", name: "Ramon Airport", type: "airport", members: ["ETH"] },
+            { code: "MIA_ALL", city: "Miami / South Florida", country: "USA", name: "All South Florida Airports (MIA, FLL, PBI)", type: "city", members: ["MIA", "FLL", "PBI"] },
+            { code: "MIA", city: "Miami", country: "USA", name: "Miami International Airport", type: "airport", members: ["MIA"] },
+            { code: "FLL", city: "Fort Lauderdale", country: "USA", name: "Fort Lauderdale-Hollywood International Airport", type: "airport", members: ["FLL"] },
+            { code: "PBI", city: "West Palm Beach", country: "USA", name: "Palm Beach International Airport", type: "airport", members: ["PBI"] },
+            { code: "LAX", city: "Los Angeles", country: "USA", name: "Los Angeles International Airport", type: "airport", members: ["LAX"] },
+            { code: "SFO", city: "San Francisco", country: "USA", name: "San Francisco International Airport", type: "airport", members: ["SFO"] },
+            { code: "ORD", city: "Chicago", country: "USA", name: "O'Hare International Airport", type: "airport", members: ["ORD"] },
+            { code: "FRA", city: "Frankfurt", country: "Germany", name: "Frankfurt Airport", type: "airport", members: ["FRA"] },
+            { code: "MUC", city: "Munich", country: "Germany", name: "Munich Airport", type: "airport", members: ["MUC"] },
+            { code: "ZRH", city: "Zurich", country: "Switzerland", name: "Zurich Airport", type: "airport", members: ["ZRH"] },
+            { code: "AMS", city: "Amsterdam", country: "Netherlands", name: "Amsterdam Airport Schiphol", type: "airport", members: ["AMS"] }
+        ];
+
+        // Datasets for each Trip Type in standalone preview mode
+        const MOCK_ONEWAY_FLIGHTS = [
+            {
+                id: "OW-1",
+                trip_type: "one_way",
+                airline_code: "IB",
+                airline_name: "Iberia",
+                flight_number: "IB440",
+                scraper_source: "Skyscanner OTA",
+                departure_time: "2026-08-14T20:15:00",
+                arrival_time: "2026-08-15T10:20:00",
+                origin: "JFK",
+                destination: "TLV",
+                duration_minutes: 845,
+                stops: 1,
+                stop_airports: ["MAD"],
+                aircraft: "Boeing 777-300ER",
+                price: 289.40,
+                value_score: 75.2,
+                booking_url: "https://www.iberia.com",
+                shabbos_level: "SAFE",
+                shabbos_summary: "Safe Friday Flight (5h 44m buffer)",
+                shabbos_buffer_mins: 344,
+                ksml_offered: true,
+                mehadrin_offered: false,
+                notice_hours: 48,
+                certification: "Madrid Rabbinate / OU",
+                tags: ["Lowest Fare", "Best Value", "Shabbos Safe", "KSML Available"]
+            },
+            {
+                id: "OW-2",
+                trip_type: "one_way",
+                airline_code: "LY",
+                airline_name: "El Al Israel Airlines",
+                flight_number: "LY2",
+                scraper_source: "Direct Airline Official",
+                departure_time: "2026-08-14T00:15:00",
+                arrival_time: "2026-08-14T11:00:00",
+                origin: "JFK",
+                destination: "TLV",
+                duration_minutes: 645,
+                stops: 0,
+                stop_airports: [],
+                aircraft: "Boeing 787-9 Dreamliner",
+                price: 349.00,
+                value_score: 72.8,
+                booking_url: "https://www.elal.com",
+                shabbos_level: "SAFE",
+                shabbos_summary: "Safe Friday Flight (5h 32m buffer)",
+                shabbos_buffer_mins: 332,
+                ksml_offered: true,
+                mehadrin_offered: true,
+                notice_hours: 0,
+                certification: "Badatz Edah HaChareidit / Regal Kashrut",
+                tags: ["Direct Flight", "Shabbos Safe", "Mehadrin KSML Available"]
+            },
+            {
+                id: "OW-3",
+                trip_type: "one_way",
+                airline_code: "UA",
+                airline_name: "United Airlines",
+                flight_number: "UA84",
+                scraper_source: "Google Flights",
+                departure_time: "2026-08-14T14:40:00",
+                arrival_time: "2026-08-15T04:45:00",
+                origin: "EWR",
+                destination: "TLV",
+                duration_minutes: 695,
+                stops: 0,
+                stop_airports: [],
+                aircraft: "Boeing 787-9 Dreamliner",
+                price: 325.50,
+                value_score: 68.0,
+                booking_url: "https://www.united.com",
+                shabbos_level: "SAFE",
+                shabbos_summary: "Safe Friday Flight (11h 19m buffer)",
+                shabbos_buffer_mins: 679,
+                ksml_offered: true,
+                mehadrin_offered: false,
+                notice_hours: 24,
+                certification: "MK Kosher (Montreal) / OU",
+                tags: ["Direct Flight", "Shabbos Safe", "KSML Available"]
+            }
+        ];
+
+        const MOCK_ROUNDTRIP_FLIGHTS = [
+            {
+                id: "RT-W6",
+                trip_type: "round_trip",
+                airline_code: "W6",
+                airline_name: "Wizz Air",
+                flight_number: "W6104",
+                scraper_source: "Skyscanner OTA",
+                departure_time: "2026-08-14T10:30:00",
+                arrival_time: "2026-08-15T00:20:00",
+                origin: "JFK",
+                destination: "TLV",
+                duration_minutes: 830,
+                stops: 1,
+                stop_airports: ["LTN"],
+                aircraft: "Airbus A321neo",
+                price: 439.95,
+                value_score: 79.0,
+                booking_url: "https://tp.media/r?marker=760438.aeroscrape_web&p=4114&u=https%3A%2F%2Fwww.aviasales.com%2Fsearch%2F1408JFKTLV12308",
+                shabbos_level: "SAFE",
+                shabbos_summary: "Safe Friday Flight (15h 44m buffer)",
+                shabbos_buffer_mins: 944,
+                ksml_offered: false,
+                mehadrin_offered: false,
+                notice_hours: 0,
+                certification: "None",
+                tags: ["Lowest Fare", "Best Value", "Shabbos Safe", "No Kosher Meals"],
+                return_leg: {
+                    origin: "TLV",
+                    destination: "JFK",
+                    airline_name: "Wizz Air",
+                    flight_number: "W6105R",
+                    departure_time: "2026-08-23T06:15:00",
+                    arrival_time: "2026-08-23T19:30:00"
+                }
+            },
+            {
+                id: "RT-U2",
+                trip_type: "round_trip",
+                airline_code: "U2",
+                airline_name: "easyJet",
+                flight_number: "U2301",
+                scraper_source: "Skyscanner OTA",
+                departure_time: "2026-08-14T07:15:00",
+                arrival_time: "2026-08-14T21:05:00",
+                origin: "JFK",
+                destination: "TLV",
+                duration_minutes: 830,
+                stops: 1,
+                stop_airports: ["LGW"],
+                aircraft: "Airbus A320neo",
+                price: 468.00,
+                value_score: 65.0,
+                booking_url: "https://tp.media/r?marker=760438.aeroscrape_web&p=4114&u=https%3A%2F%2Fwww.aviasales.com%2Fsearch%2F1408JFKTLV12308",
+                shabbos_level: "VIOLATION",
+                shabbos_summary: "Arrives after Candle Lighting on Friday",
+                shabbos_buffer_mins: -45,
+                ksml_offered: false,
+                mehadrin_offered: false,
+                notice_hours: 0,
+                certification: "None",
+                tags: ["Shabbos Violation", "No Kosher Meals"],
+                return_leg: {
+                    origin: "TLV",
+                    destination: "JFK",
+                    airline_name: "easyJet",
+                    flight_number: "U2302R",
+                    departure_time: "2026-08-23T08:00:00",
+                    arrival_time: "2026-08-23T21:15:00"
+                }
+            },
+            {
+                id: "RT-1",
+                trip_type: "round_trip",
+                airline_code: "IB",
+                airline_name: "Iberia",
+                flight_number: "IB440",
+                scraper_source: "Skyscanner OTA",
+                departure_time: "2026-08-14T20:15:00",
+                arrival_time: "2026-08-15T10:20:00",
+                origin: "JFK",
+                destination: "TLV",
+                duration_minutes: 845,
+                stops: 1,
+                stop_airports: ["MAD"],
+                aircraft: "Boeing 777-300ER",
+                price: 533.81,
+                value_score: 73.0,
+                booking_url: "https://www.iberia.com",
+                shabbos_level: "SAFE",
+                shabbos_summary: "Safe Friday Flight (5h 44m buffer)",
+                shabbos_buffer_mins: 344,
+                ksml_offered: true,
+                mehadrin_offered: false,
+                notice_hours: 48,
+                certification: "Madrid Rabbinate / OU",
+                tags: ["Lowest Fare", "Best Value", "Shabbos Safe", "KSML Available"],
+                return_leg: {
+                    origin: "TLV",
+                    destination: "JFK",
+                    airline_name: "Iberia",
+                    flight_number: "IB441R",
+                    departure_time: "2026-08-23T06:15:00",
+                    arrival_time: "2026-08-23T19:30:00"
+                }
+            },
+            {
+                id: "RT-2",
+                trip_type: "round_trip",
+                airline_code: "AA",
+                airline_name: "American Airlines",
+                flight_number: "AA115",
+                scraper_source: "Google Flights",
+                departure_time: "2026-08-14T13:45:00",
+                arrival_time: "2026-08-15T03:35:00",
+                origin: "JFK",
+                destination: "TLV",
+                duration_minutes: 830,
+                stops: 1,
+                stop_airports: ["FRA"],
+                aircraft: "Airbus A350-900",
+                price: 541.90,
+                value_score: 70.2,
+                booking_url: "https://www.aa.com",
+                shabbos_level: "SAFE",
+                shabbos_summary: "Safe Friday Flight (12h 29m buffer)",
+                shabbos_buffer_mins: 749,
+                ksml_offered: true,
+                mehadrin_offered: false,
+                notice_hours: 24,
+                certification: "cRc (Chicago Rabbinical Council)",
+                tags: ["Shabbos Safe", "KSML Available"],
+                return_leg: {
+                    origin: "TLV",
+                    destination: "JFK",
+                    airline_name: "American Airlines",
+                    flight_number: "AA116R",
+                    departure_time: "2026-08-23T10:00:00",
+                    arrival_time: "2026-08-23T23:15:00"
+                }
+            },
+            {
+                id: "RT-3",
+                trip_type: "round_trip",
+                airline_code: "BA",
+                airline_name: "British Airways",
+                flight_number: "BA201",
+                scraper_source: "Direct Airline Official",
+                departure_time: "2026-08-14T19:45:00",
+                arrival_time: "2026-08-15T07:20:00",
+                origin: "JFK",
+                destination: "TLV",
+                duration_minutes: 695,
+                stops: 0,
+                stop_airports: [],
+                aircraft: "Boeing 787-9 Dreamliner",
+                price: 615.40,
+                value_score: 69.8,
+                booking_url: "https://www.britishairways.com",
+                shabbos_level: "SAFE",
+                shabbos_summary: "Safe Friday Flight (8h 44m buffer)",
+                shabbos_buffer_mins: 524,
+                ksml_offered: true,
+                mehadrin_offered: true,
+                notice_hours: 24,
+                certification: "Hermolis (Kedassia / London Badatz Standard)",
+                tags: ["Direct Flight", "Shabbos Safe", "Mehadrin KSML Available"],
+                return_leg: {
+                    origin: "TLV",
+                    destination: "JFK",
+                    airline_name: "British Airways",
+                    flight_number: "BA202R",
+                    departure_time: "2026-08-23T11:45:00",
+                    arrival_time: "2026-08-23T23:20:00"
+                }
+            },
+            {
+                id: "RT-4",
+                trip_type: "round_trip",
+                airline_code: "LY",
+                airline_name: "El Al Israel Airlines",
+                flight_number: "LY4",
+                scraper_source: "Direct Airline Official",
+                departure_time: "2026-08-14T08:00:00",
+                arrival_time: "2026-08-14T19:35:00",
+                origin: "JFK",
+                destination: "TLV",
+                duration_minutes: 695,
+                stops: 0,
+                stop_airports: [],
+                aircraft: "Boeing 787-9 Dreamliner",
+                price: 651.90,
+                value_score: 45.0,
+                booking_url: "https://www.elal.com",
+                shabbos_level: "VIOLATION",
+                shabbos_summary: "Arrives after Candle Lighting on Friday",
+                shabbos_buffer_mins: -65,
+                ksml_offered: true,
+                mehadrin_offered: true,
+                notice_hours: 0,
+                certification: "Badatz Edah HaChareidit / Regal Kashrut",
+                tags: ["Direct Flight", "Shabbos Violation", "Mehadrin KSML Available"],
+                return_leg: {
+                    origin: "TLV",
+                    destination: "JFK",
+                    airline_name: "El Al Israel Airlines",
+                    flight_number: "LY3R",
+                    departure_time: "2026-08-23T01:00:00",
+                    arrival_time: "2026-08-23T06:00:00"
+                }
+            }
+        ];
+
+        const MOCK_MULTICITY_FLIGHTS = [
+            {
+                id: "MC-1",
+                trip_type: "multi_city",
+                airline_code: "AA",
+                airline_name: "American Airlines",
+                flight_number: "AA741",
+                scraper_source: "Google Flights",
+                departure_time: "2026-08-14T17:00:00",
+                arrival_time: "2026-08-15T05:00:00",
+                origin: "JFK",
+                destination: "LHR",
+                duration_minutes: 1110,
+                stops: 0,
+                stop_airports: [],
+                aircraft: "Boeing 787-9 Dreamliner",
+                price: 848.24,
+                value_score: 79.5,
+                booking_url: "https://www.aa.com",
+                shabbos_level: "SAFE",
+                shabbos_summary: "All 3 Hops Shabbos-Safe",
+                shabbos_buffer_mins: 640,
+                ksml_offered: true,
+                mehadrin_offered: false,
+                notice_hours: 24,
+                certification: "cRc (Chicago Rabbinical Council)",
+                tags: ["Lowest Fare", "Best Value", "Shabbos Safe", "KSML Available"],
+                multi_legs: [
+                    { origin: "JFK", destination: "LHR", airline_name: "American Airlines", flight_number: "AA741", aircraft: "Boeing 787-9", departure_time: "2026-08-14T17:00:00" },
+                    { origin: "LHR", destination: "CDG", airline_name: "American Airlines", flight_number: "AA787", aircraft: "Airbus A321", departure_time: "2026-08-18T21:20:00" },
+                    { origin: "CDG", destination: "TLV", airline_name: "American Airlines", flight_number: "AA833", aircraft: "Airbus A350", departure_time: "2026-08-22T23:50:00" }
+                ]
+            },
+            {
+                id: "MC-2",
+                trip_type: "multi_city",
+                airline_code: "BA",
+                airline_name: "British Airways",
+                flight_number: "BA201",
+                scraper_source: "Direct Airline Official",
+                departure_time: "2026-08-14T19:00:00",
+                arrival_time: "2026-08-15T07:15:00",
+                origin: "JFK",
+                destination: "LHR",
+                duration_minutes: 1080,
+                stops: 0,
+                stop_airports: [],
+                aircraft: "Boeing 787-9 Dreamliner",
+                price: 895.00,
+                value_score: 77.1,
+                booking_url: "https://www.britishairways.com",
+                shabbos_level: "SAFE",
+                shabbos_summary: "All 3 Hops Shabbos-Safe",
+                shabbos_buffer_mins: 540,
+                ksml_offered: true,
+                mehadrin_offered: true,
+                notice_hours: 24,
+                certification: "Hermolis (Kedassia / London Badatz Standard)",
+                tags: ["Shabbos Safe", "Mehadrin KSML Available"],
+                multi_legs: [
+                    { origin: "JFK", destination: "LHR", airline_name: "British Airways", flight_number: "BA201", aircraft: "Boeing 787-9", departure_time: "2026-08-14T19:00:00" },
+                    { origin: "LHR", destination: "CDG", airline_name: "British Airways", flight_number: "BA308", aircraft: "Airbus A320", departure_time: "2026-08-18T10:15:00" },
+                    { origin: "CDG", destination: "TLV", airline_name: "British Airways", flight_number: "BA404", aircraft: "Boeing 787-9", departure_time: "2026-08-22T14:30:00" }
+                ]
+            },
+            {
+                id: "MC-3",
+                trip_type: "multi_city",
+                airline_code: "UA",
+                airline_name: "United Airlines",
+                flight_number: "UA651",
+                scraper_source: "Skyscanner OTA",
+                departure_time: "2026-08-14T10:30:00",
+                arrival_time: "2026-08-14T22:10:00",
+                origin: "JFK",
+                destination: "LHR",
+                duration_minutes: 1150,
+                stops: 0,
+                stop_airports: [],
+                aircraft: "Boeing 787-9 Dreamliner",
+                price: 915.50,
+                value_score: 64.0,
+                booking_url: "https://www.united.com",
+                shabbos_level: "VIOLATION",
+                shabbos_summary: "Leg 3: Departs before Havdalah on Shabbos",
+                shabbos_buffer_mins: -45,
+                ksml_offered: true,
+                mehadrin_offered: false,
+                notice_hours: 24,
+                certification: "MK Kosher (Montreal) / OU",
+                tags: ["Shabbos Violation", "KSML Available"],
+                multi_legs: [
+                    { origin: "JFK", destination: "LHR", airline_name: "United Airlines", flight_number: "UA651", aircraft: "Boeing 787-9", departure_time: "2026-08-14T10:30:00" },
+                    { origin: "LHR", destination: "CDG", airline_name: "United Airlines", flight_number: "UA697", aircraft: "Airbus A321", departure_time: "2026-08-18T13:45:00" },
+                    { origin: "CDG", destination: "TLV", airline_name: "United Airlines", flight_number: "UA743", aircraft: "Boeing 787-9", departure_time: "2026-08-22T17:00:00" }
+                ]
+            }
+        ];
+
+        const MOCK_DATE_GRID = [
+            { date: "2026-08-11", day: "TUE", price: 522, status: "Great Deal", safe: true },
+            { date: "2026-08-12", day: "WED", price: 535, status: "Great Deal", safe: true },
+            { date: "2026-08-13", day: "THU", price: 550, status: "Good Deal", safe: true },
+            { date: "2026-08-14", day: "FRI", price: 533, status: "Great Deal", safe: true, active: true },
+            { date: "2026-08-15", day: "SAT", price: 595, status: "Standard", safe: false },
+            { date: "2026-08-16", day: "SUN", price: 560, status: "Good Deal", safe: true },
+            { date: "2026-08-17", day: "MON", price: 545, status: "Good Deal", safe: true },
+        ];
+
+        const MOCK_KOSHER_AIRLINES = [
+            { code: "LY", name: "El Al Israel Airlines", ksml: true, mehadrin: true, notice: 0, cert: "Badatz Edah HaChareidit / Regal Kashrut", rating: "A+" },
+            { code: "BA", name: "British Airways", ksml: true, mehadrin: true, notice: 24, cert: "Hermolis (Kedassia / London Badatz Standard)", rating: "A+" },
+            { code: "UA", name: "United Airlines", ksml: true, mehadrin: false, notice: 24, cert: "MK Kosher (Montreal) / OU", rating: "A" },
+            { code: "DL", name: "Delta Air Lines", ksml: true, mehadrin: false, notice: 24, cert: "OU (Orthodox Union) / Borenstein", rating: "A" },
+            { code: "AA", name: "American Airlines", ksml: true, mehadrin: false, notice: 24, cert: "cRc (Chicago Rabbinical Council) / Fresko", rating: "A" },
+            { code: "LH", name: "Lufthansa", ksml: true, mehadrin: false, notice: 48, cert: "OU / Sohar / Regal Kashrut", rating: "A" },
+            { code: "AF", name: "Air France", ksml: true, mehadrin: false, notice: 48, cert: "Paris Orthodox Chief Rabbinate / Streeat Kosher", rating: "A" },
+            { code: "LX", name: "Swiss International Air Lines", ksml: true, mehadrin: false, notice: 48, cert: "OU / Rabbinat Zürich", rating: "A" },
+            { code: "TK", name: "Turkish Airlines", ksml: true, mehadrin: false, notice: 48, cert: "OU (from Istanbul/US)", rating: "B" },
+            { code: "IB", name: "Iberia", ksml: true, mehadrin: false, notice: 48, cert: "Madrid Rabbinate / OU", rating: "B" },
+            { code: "FR", name: "Ryanair", ksml: false, mehadrin: false, notice: 0, cert: "None (Low-cost carrier)", rating: "C" },
+            { code: "U2", name: "easyJet", ksml: false, mehadrin: false, notice: 0, cert: "None (Low-cost carrier)", rating: "C" },
+            { code: "EK", name: "Emirates", ksml: false, mehadrin: false, notice: 0, cert: "Halal Standard Only", rating: "C" },
+        ];
+
+        let currentTripType = 'round_trip';
+        let multiCityLegs = [
+            { origin: "JFK", dest: "LHR", date: "2026-08-14" },
+            { origin: "LHR", dest: "CDG", date: "2026-08-18" },
+            { origin: "CDG", dest: "TLV", date: "2026-08-22" }
+        ];
+
+        let filteredFlights = [...MOCK_ROUNDTRIP_FLIGHTS];
+
+        function setTripType(type) {
+            currentTripType = type;
+            document.querySelectorAll('#btn-trip-one, #btn-trip-round, #btn-trip-multi').forEach(b => {
+                b.className = "px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-300 hover:text-white";
+            });
+            if (type === 'one_way') {
+                document.getElementById('btn-trip-one').className = "px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-sky-600 text-white shadow";
+                document.getElementById('standard-fields').classList.remove('hidden');
+                document.getElementById('return-date-wrapper').classList.add('hidden');
+                document.getElementById('multi-city-fields').classList.add('hidden');
+                document.getElementById('current-trip-label').textContent = "One-Way";
+            } else if (type === 'round_trip') {
+                document.getElementById('btn-trip-round').className = "px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-sky-600 text-white shadow";
+                document.getElementById('standard-fields').classList.remove('hidden');
+                document.getElementById('return-date-wrapper').classList.remove('hidden');
+                document.getElementById('multi-city-fields').classList.add('hidden');
+                document.getElementById('current-trip-label').textContent = "Round-Trip";
+            } else if (type === 'multi_city') {
+                document.getElementById('btn-trip-multi').className = "px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-sky-600 text-white shadow";
+                document.getElementById('standard-fields').classList.add('hidden');
+                document.getElementById('multi-city-fields').classList.remove('hidden');
+                document.getElementById('current-trip-label').textContent = "Multi-City";
+                renderMultiCityLegs();
+            }
+            applyFilters();
+        }
+
+        function renderMultiCityLegs() {
+            const container = document.getElementById('multi-legs-container');
+            container.innerHTML = multiCityLegs.map((l, idx) => `
+                <div class="grid grid-cols-12 gap-2 items-center bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/60">
+                    <div class="col-span-2 text-center text-xs font-bold text-sky-400">HOP ${idx + 1}</div>
+                    <div class="col-span-4">
+                        <input type="text" value="${l.origin}" onchange="multiCityLegs[${idx}].origin = this.value" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-white font-medium uppercase text-sm" placeholder="ORIGIN (e.g. JFK)">
+                    </div>
+                    <div class="col-span-4">
+                        <input type="text" value="${l.dest}" onchange="multiCityLegs[${idx}].dest = this.value" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-white font-medium uppercase text-sm" placeholder="DEST (e.g. LHR)">
+                    </div>
+                    <div class="col-span-2 flex items-center justify-between">
+                        <input type="date" value="${l.date}" onchange="multiCityLegs[${idx}].date = this.value" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white font-medium text-sm">
+                        ${idx > 0 ? `<button type="button" onclick="removeMultiCityLeg(${idx})" class="ml-2 text-rose-400 hover:text-rose-300 font-bold text-sm">✕</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addMultiCityLeg() {
+            if (multiCityLegs.length >= 5) return;
+            const last = multiCityLegs[multiCityLegs.length - 1];
+            multiCityLegs.push({
+                origin: last.dest,
+                dest: "TLV",
+                date: "2026-08-25"
+            });
+            renderMultiCityLegs();
+        }
+
+        function removeMultiCityLeg(idx) {
+            multiCityLegs.splice(idx, 1);
+            renderMultiCityLegs();
+        }
+
+        // Autocomplete functions
+        function handleAutocomplete(field, query) {
+            const dropdown = document.getElementById(`dropdown-${field}`);
+            const q = (query || "").trim().toLowerCase();
+
+            let items = CLIENT_AIRPORTS_DB;
+            if (q.length > 0) {
+                items = CLIENT_AIRPORTS_DB.filter(item => 
+                    item.code.toLowerCase().includes(q) ||
+                    item.city.toLowerCase().includes(q) ||
+                    item.country.toLowerCase().includes(q) ||
+                    item.name.toLowerCase().includes(q)
+                );
+            }
+
+            if (items.length === 0) {
+                dropdown.innerHTML = `<div class="p-3 text-xs text-slate-400 text-center">No airports or cities found</div>`;
+                dropdown.classList.remove('hidden');
+                return;
+            }
+
+            dropdown.innerHTML = items.map(item => {
+                const isCity = item.type === "city";
+                const badge = isCity 
+                    ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30">ALL AIRPORTS</span>`
+                    : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300">AIRPORT</span>`;
+
+                const icon = isCity ? "🏙️" : "✈️";
+                const subtitle = isCity
+                    ? `All ${item.city} Airports (${item.members.join(', ')}) • ${item.country}`
+                    : `${item.name} • ${item.city}, ${item.country}`;
+
+                return `
+                    <div onclick="selectAirport('${field}', '${item.code}')" 
+                         class="p-3 hover:bg-slate-800/80 cursor-pointer transition flex items-center justify-between group">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-lg">${icon}</span>
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-bold text-white group-hover:text-sky-400 transition">${item.city} (${item.code})</span>
+                                    ${badge}
+                                </div>
+                                <span class="text-xs text-slate-400 block mt-0.5">${subtitle}</span>
+                            </div>
+                        </div>
+                        <span class="text-xs font-semibold text-slate-500 group-hover:text-slate-300 transition">Select →</span>
+                    </div>
+                `;
+            }).join('');
+
+            dropdown.classList.remove('hidden');
+        }
+
+        function selectAirport(field, code) {
+            const input = document.getElementById(`input-${field}`);
+            input.value = code;
+            document.getElementById(`dropdown-${field}`).classList.add('hidden');
+            runSearch();
+        }
+
+        function closeAllDropdowns(e) {
+            if (!e.target.closest('#origin-wrapper')) {
+                document.getElementById('dropdown-origin').classList.add('hidden');
+            }
+            if (!e.target.closest('#dest-wrapper')) {
+                document.getElementById('dropdown-dest').classList.add('hidden');
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('nav button').forEach(b => {
+                b.className = "px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white";
+            });
+            document.getElementById(`tab-${tab}`).className = "px-4 py-2 rounded-lg text-sm font-medium transition-all bg-sky-600 text-white shadow";
+            
+            document.getElementById('section-search').classList.add('hidden');
+            document.getElementById('section-shabbos').classList.add('hidden');
+            document.getElementById('section-kosher').classList.add('hidden');
+            
+            document.getElementById(`section-${tab}`).classList.remove('hidden');
+
+            if (tab === 'kosher') renderKosherTable(MOCK_KOSHER_AIRLINES);
+            if (tab === 'shabbos') loadZmanim();
+        }
+
+        function runSearch() {
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const hideViolations = document.getElementById('input-filter-shabbos').checked;
+            const requireKsml = document.getElementById('input-require-ksml').checked;
+
+            let sourceList = MOCK_ROUNDTRIP_FLIGHTS;
+            if (currentTripType === 'one_way') sourceList = MOCK_ONEWAY_FLIGHTS;
+            if (currentTripType === 'multi_city') sourceList = MOCK_MULTICITY_FLIGHTS;
+
+            filteredFlights = sourceList.filter(fl => {
+                if (hideViolations && fl.shabbos_level === 'VIOLATION') return false;
+                if (requireKsml && !fl.ksml_offered) return false;
+                return true;
+            });
+
+            renderDashboard();
+        }
+
+        function sortFlights(sortBy) {
+            if (sortBy === 'price') {
+                filteredFlights.sort((a, b) => a.price - b.price);
+            } else if (sortBy === 'score') {
+                filteredFlights.sort((a, b) => b.value_score - a.value_score);
+            } else if (sortBy === 'duration') {
+                filteredFlights.sort((a, b) => a.duration_minutes - b.duration_minutes);
+            } else if (sortBy === 'shabbos') {
+                filteredFlights.sort((a, b) => {
+                    const as = a.shabbos_level === 'SAFE' ? 1 : 0;
+                    const bs = b.shabbos_level === 'SAFE' ? 1 : 0;
+                    return bs - as || a.price - b.price;
+                });
+            }
+            renderFlightList();
+        }
+
+        function renderDashboard() {
+            const cheapest = filteredFlights.length ? Math.min(...filteredFlights.map(f => f.price)) : 0;
+            const avg = filteredFlights.length ? filteredFlights.reduce((sum, f) => sum + f.price, 0) / filteredFlights.length : 0;
+            const safeCount = filteredFlights.filter(f => f.shabbos_level === 'SAFE').length;
+            const kosherCount = filteredFlights.filter(f => f.ksml_offered).length;
+
+            document.getElementById('stat-cheapest').textContent = '$' + cheapest.toFixed(2);
+            document.getElementById('stat-avg').textContent = '$' + avg.toFixed(2);
+            document.getElementById('stat-safe').textContent = safeCount + ' Options';
+            document.getElementById('stat-kosher').textContent = kosherCount + ' Airlines';
+
+            const gridContainer = document.getElementById('date-grid-container');
+            gridContainer.innerHTML = MOCK_DATE_GRID.map(p => `
+                <div onclick="selectDate('${p.date}')" class="p-3 rounded-xl border cursor-pointer transition ${p.active ? 'border-sky-500 bg-sky-950/40 ring-1 ring-sky-500' : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'}">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block">${p.day}, ${p.date.slice(5)}</span>
+                    <span class="text-sm font-bold text-white block mt-1">$${p.price}</span>
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-[10px] ${p.status === 'Great Deal' ? 'text-emerald-400' : 'text-slate-400'}">${p.status}</span>
+                        ${p.safe ? '<span class="text-xs" title="Shabbos Safe">🕯️</span>' : '<span class="text-xs text-rose-500" title="Shabbos Conflict">✖</span>'}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('flight-count').textContent = filteredFlights.length;
+            renderFlightList();
+        }
+
+        function selectDate(dateStr) {
+            document.getElementById('input-date').value = dateStr;
+            MOCK_DATE_GRID.forEach(d => d.active = (d.date === dateStr));
+            renderDashboard();
+        }
+
+        function renderFlightList() {
+            const list = document.getElementById('flights-list');
+            if (filteredFlights.length === 0) {
+                list.innerHTML = `<div class="bg-slate-900 p-8 rounded-2xl text-center text-slate-400">No flights match your filters. Try unchecking 'Hide Shabbos Violations'.</div>`;
+                return;
+            }
+
+            list.innerHTML = filteredFlights.map(fl => {
+                const depTime = new Date(fl.departure_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const arrTime = new Date(fl.arrival_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const durH = Math.floor(fl.duration_minutes / 60);
+                const durM = fl.duration_minutes % 60;
+
+                let shabbosBadge = '';
+                if (fl.shabbos_level === 'SAFE') {
+                    shabbosBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🕯️ Shabbos Safe</span>`;
+                } else if (fl.shabbos_level === 'WARNING') {
+                    shabbosBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">⚠ Tight Buffer</span>`;
+                } else {
+                    shabbosBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">⚠️ Not Recommended for Shabbos (${fl.shabbos_summary})</span>`;
+                }
+
+                let kosherBadge = '';
+                if (fl.mehadrin_offered) {
+                    kosherBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-500/20 text-teal-300 border border-teal-500/30">★ Mehadrin Badatz SKML</span>`;
+                } else if (fl.ksml_offered) {
+                    kosherBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-500/20 text-sky-400 border border-sky-500/30">✔ Kosher KSML (${fl.notice_hours}h notice)</span>`;
+                } else {
+                    kosherBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">⚠️ No Kosher Meal – Bring Kosher food with you!</span>`;
+                }
+
+                let itineraryDetailsHtml = '';
+                if (fl.trip_type === 'multi_city' && fl.multi_legs && fl.multi_legs.length > 0) {
+                    itineraryDetailsHtml = `
+                        <div class="mt-3 pt-3 border-t border-slate-800/80 space-y-2">
+                            <span class="text-xs font-bold text-sky-400 uppercase">Multi-City Itinerary Hops:</span>
+                            ${fl.multi_legs.map((hl, hidx) => `
+                                <div class="flex items-center justify-between text-xs bg-slate-800/40 p-2 rounded-lg">
+                                    <span class="font-bold text-white">Hop ${hidx+1}: ${hl.origin} → ${hl.destination}</span>
+                                    <span class="text-slate-400">${hl.airline_name} ${hl.flight_number} (${hl.aircraft})</span>
+                                    <span class="text-slate-300 font-semibold">${new Date(hl.departure_time).toLocaleDateString()} at ${new Date(hl.departure_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else if (fl.return_leg) {
+                    itineraryDetailsHtml = `
+                        <div class="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs bg-slate-800/40 p-2 rounded-lg">
+                            <span class="font-bold text-sky-400">Return Leg: ${fl.return_leg.origin} → ${fl.return_leg.destination}</span>
+                            <span class="text-slate-400">${fl.return_leg.airline_name} ${fl.return_leg.flight_number}</span>
+                            <span class="text-slate-300 font-semibold">${new Date(fl.return_leg.departure_time).toLocaleDateString()} at ${new Date(fl.return_leg.departure_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition shadow-lg">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <!-- Left -->
+                            <div class="flex items-center space-x-4">
+                                <div class="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center font-bold text-sky-400 text-lg">
+                                    ${fl.airline_code}
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-white text-base">${fl.airline_name}</h4>
+                                    <div class="flex items-center space-x-2 text-xs text-slate-400 mt-0.5">
+                                        <span class="bg-slate-800 px-2 py-0.5 rounded text-slate-300">${fl.scraper_source}</span>
+                                        <span>Flight ${fl.flight_number}</span>
+                                        <span>• ${fl.aircraft}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Middle -->
+                            <div class="flex items-center space-x-6 text-center">
+                                <div>
+                                    <span class="text-xl font-bold text-white">${depTime}</span>
+                                    <span class="text-xs text-slate-400 block">${fl.origin}</span>
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    <span class="text-xs text-slate-500 mb-1">${durH}h ${durM}m</span>
+                                    <div class="w-24 h-0.5 bg-slate-700 relative">
+                                        <div class="w-2 h-2 rounded-full bg-sky-500 absolute -top-1 left-1/2 -translate-x-1/2"></div>
+                                    </div>
+                                    <span class="text-[11px] text-slate-400 mt-1">${fl.stops === 0 ? 'Non-stop' : fl.stops + ' Stop (' + fl.stop_airports.join(', ') + ')'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-xl font-bold text-white">${arrTime}</span>
+                                    <span class="text-xs text-slate-400 block">${fl.destination}</span>
+                                </div>
+                            </div>
+
+                            <!-- Right -->
+                            <div class="flex md:flex-col items-center md:items-end justify-between border-t md:border-t-0 pt-3 md:pt-0 border-slate-800">
+                                <div class="text-right">
+                                    <span class="text-2xl font-black text-emerald-400">$${fl.price.toFixed(2)}</span>
+                                    <span class="text-xs text-slate-500 block">Value Score: ${fl.value_score}/100</span>
+                                </div>
+                                <a href="${fl.booking_url}" target="_blank" class="mt-2 bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold px-4 py-2 rounded-lg border border-slate-700 transition">
+                                    Select Flight →
+                                </a>
+                            </div>
+                        </div>
+
+                        ${itineraryDetailsHtml}
+
+                        <!-- Bottom -->
+                        <div class="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div class="flex flex-wrap items-center gap-2">
+                                ${shabbosBadge}
+                                ${kosherBadge}
+                                ${fl.tags.map(t => `<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400">${t}</span>`).join('')}
+                            </div>
+                            <span class="text-slate-500">${fl.shabbos_summary}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadZmanim() {
+            const airport = document.getElementById('zmanim-airport').value;
+            if (airport === 'TLV') {
+                document.getElementById('zm-city').textContent = "Tel Aviv (TLV)";
+                document.getElementById('zm-country').textContent = "Israel";
+                document.getElementById('zm-sunset').textContent = "16:52 UTC";
+                document.getElementById('zm-candle').textContent = "16:32 UTC";
+                document.getElementById('zm-havdalah').textContent = "17:42 UTC";
+            } else if (airport === 'JFK' || airport === 'EWR' || airport === 'LGA') {
+                document.getElementById('zm-city').textContent = `New York (${airport})`;
+                document.getElementById('zm-country').textContent = "USA";
+                document.getElementById('zm-sunset').textContent = "23:55 UTC";
+                document.getElementById('zm-candle').textContent = "23:37 UTC";
+                document.getElementById('zm-havdalah').textContent = "00:45 UTC (+1)";
+            } else if (airport === 'LHR') {
+                document.getElementById('zm-city').textContent = "London (LHR)";
+                document.getElementById('zm-country').textContent = "UK";
+                document.getElementById('zm-sunset').textContent = "20:25 UTC";
+                document.getElementById('zm-candle').textContent = "20:07 UTC";
+                document.getElementById('zm-havdalah').textContent = "21:15 UTC";
+            } else {
+                document.getElementById('zm-city').textContent = `City (${airport})`;
+                document.getElementById('zm-country').textContent = "International";
+                document.getElementById('zm-sunset').textContent = "18:30 UTC";
+                document.getElementById('zm-candle').textContent = "18:12 UTC";
+                document.getElementById('zm-havdalah').textContent = "19:20 UTC";
+            }
+        }
+
+        function renderKosherTable(airlines) {
+            const tbody = document.getElementById('kosher-tbody');
+            tbody.innerHTML = airlines.map(a => `
+                <tr class="hover:bg-slate-800/50 transition">
+                    <td class="py-3 px-4 font-bold text-white">${a.name} (${a.code})</td>
+                    <td class="py-3 px-4">${a.ksml ? '<span class="text-emerald-400 font-semibold">✔ Yes</span>' : '<span class="text-rose-400">✖ No</span>'}</td>
+                    <td class="py-3 px-4">${a.mehadrin ? '<span class="text-teal-400 font-semibold">★ Yes</span>' : '<span class="text-slate-500">No</span>'}</td>
+                    <td class="py-3 px-4">${a.notice} hours</td>
+                    <td class="py-3 px-4 text-slate-300">${a.cert}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-bold ${a.rating === 'A+' ? 'bg-emerald-500/20 text-emerald-400' : (a.rating === 'A' ? 'bg-sky-500/20 text-sky-400' : 'bg-slate-800 text-slate-400')}">${a.rating}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function filterKosherTable(val) {
+            const trs = document.querySelectorAll('#kosher-tbody tr');
+            trs.forEach(tr => {
+                tr.style.display = tr.textContent.toLowerCase().includes(val.toLowerCase()) ? '' : 'none';
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderDashboard();
+        });
+    </script>
+</body>
+</html>
