@@ -50,17 +50,27 @@
                     <p class="text-xs text-slate-400">Flight Price Scraper • Shabbos Alerts • Kosher KSML Guide</p>
                 </div>
             </div>
-            <nav class="flex space-x-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700">
-                <button onclick="switchTab('search')" id="tab-search" class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-sky-600 text-white shadow">
-                    ✈️ Flight Search
-                </button>
-                <button onclick="switchTab('shabbos')" id="tab-shabbos" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white">
-                    🕯️ Shabbos Zmanim
-                </button>
-                <button onclick="switchTab('kosher')" id="tab-kosher" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white">
-                    🥗 Kosher Airlines Guide
-                </button>
-            </nav>
+            <div class="flex items-center space-x-4">
+                <select id="curr-select" onchange="changeCurrency(this.value)" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-white font-bold cursor-pointer">
+                    <option value="USD">💵 USD ($)</option>
+                    <option value="ILS">₪ ILS (₪)</option>
+                    <option value="EUR">💶 EUR (€)</option>
+                    <option value="GBP">💷 GBP (£)</option>
+                    <option value="BRL">🇧🇷 BRL (R$)</option>
+                    <option value="CAD">🇨🇦 CAD ($)</option>
+                </select>
+                <nav class="flex space-x-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700">
+                    <button onclick="switchTab('search')" id="tab-search" class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-sky-600 text-white shadow">
+                        ✈️ Flight Search
+                    </button>
+                    <button onclick="switchTab('shabbos')" id="tab-shabbos" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white">
+                        🕯️ Shabbos Zmanim
+                    </button>
+                    <button onclick="switchTab('kosher')" id="tab-kosher" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white">
+                        🥗 Kosher Airlines Guide
+                    </button>
+                </nav>
+            </div>
         </div>
     </header>
 
@@ -425,6 +435,12 @@
         let currentStats = null;
         let currentTrend = null;
         let currentTripType = 'round_trip';
+        let currentCurrency = 'USD';
+
+        function changeCurrency(c) {
+            currentCurrency = c;
+            handleSearch();
+        }
 
         // Autocomplete functions
         async function handleAutocomplete(field, query) {
@@ -552,7 +568,7 @@
             document.getElementById('results-container').classList.add('hidden');
 
             try {
-                const url = `/api/search?origin=${origin}&destination=${dest}&departure_date=${date}&cabin_class=${cabin}&passengers=${pax}&shabbos_buffer_hours=${buffer}&filter_shabbos_violations=${filterShabbos}&require_ksml=${requireKsml}`;
+                const url = `/api/search?origin=${origin}&destination=${dest}&departure_date=${date}&cabin_class=${cabin}&passengers=${pax}&shabbos_buffer_hours=${buffer}&filter_shabbos_violations=${filterShabbos}&require_ksml=${requireKsml}&currency=${currentCurrency}`;
                 const res = await fetch(url);
                 const data = await res.json();
 

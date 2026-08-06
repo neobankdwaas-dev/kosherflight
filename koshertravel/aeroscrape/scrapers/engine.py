@@ -12,6 +12,7 @@ from aeroscrape.models import (
     FlightResult,
     ScraperStats,
     ShabbosComplianceLevel,
+    convert_price,
 )
 from aeroscrape.airports import expand_city_to_airports
 from aeroscrape.scrapers.base import FlightScraper
@@ -156,6 +157,15 @@ class AeroScrapeEngine:
                 scrapers_queried=scrapers_queried,
                 execution_time_ms=exec_time
             )
+
+        # Convert prices if requested currency is not USD
+        curr = query.currency.upper().strip()
+        if curr != "USD":
+            for fl in filtered_flights:
+                fl.price.total_price = convert_price(fl.price.total_price, curr)
+                fl.price.base_fare = convert_price(fl.price.base_fare, curr)
+                fl.price.taxes_fees = convert_price(fl.price.taxes_fees, curr)
+                fl.price.currency = curr
 
         # 5. Compute Value Scores & Assign Tags
         min_price = min(f.price.total_price for f in filtered_flights)

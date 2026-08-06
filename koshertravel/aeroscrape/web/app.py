@@ -119,7 +119,9 @@ def search_flights(
     shabbos_buffer_hours: float = Query(3.0),
     filter_shabbos_violations: bool = Query(True),
     require_ksml: bool = Query(False),
-    max_stops: Optional[int] = Query(None)
+    max_stops: Optional[int] = Query(None),
+    trip_type: str = Query("round_trip"),
+    currency: str = Query("USD")
 ):
     """
     Search flights across Google Flights, Skyscanner OTA, and Direct Airlines.
@@ -130,7 +132,14 @@ def search_flights(
     except ValueError:
         cabin = CabinClass.ECONOMY
 
+    try:
+        tt = TripType(trip_type.lower())
+    except ValueError:
+        tt = TripType.ROUND_TRIP
+
     query = FlightQuery(
+        trip_type=tt,
+        currency=currency,
         origin=origin,
         destination=destination,
         departure_date=departure_date,

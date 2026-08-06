@@ -7,6 +7,30 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 
+CURRENCY_RATES = {
+    "USD": 1.0,
+    "EUR": 0.92,
+    "ILS": 3.75,
+    "GBP": 0.78,
+    "BRL": 5.50,
+    "CAD": 1.38,
+}
+
+CURRENCY_SYMBOLS = {
+    "USD": "$",
+    "EUR": "€",
+    "ILS": "₪",
+    "GBP": "£",
+    "BRL": "R$",
+    "CAD": "CA$",
+}
+
+def convert_price(usd_amount: float, target_currency: str = "USD") -> float:
+    curr = target_currency.upper().strip()
+    rate = CURRENCY_RATES.get(curr, 1.0)
+    return round(usd_amount * rate, 2)
+
+
 class CabinClass(str, Enum):
     ECONOMY = "economy"
     PREMIUM_ECONOMY = "premium_economy"
