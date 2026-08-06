@@ -733,9 +733,14 @@
                                     <span class="text-2xl font-black text-emerald-400">$${fl.price.total_price.toFixed(2)}</span>
                                     <span class="text-xs text-slate-500 block">Value Score: ${fl.value_score}/100</span>
                                 </div>
-                                <a href="${fl.booking_url}" target="_blank" class="mt-2 bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold px-4 py-2 rounded-lg border border-slate-700 transition">
-                                    Select Flight →
-                                </a>
+                                <div class="flex items-center space-x-2 mt-2">
+                                    <button type="button" onclick="shareFlightOnWhatsApp(${idx})" class="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 text-xs font-semibold px-3 py-2 rounded-lg border border-emerald-500/30 transition">
+                                        📲 WhatsApp Share
+                                    </button>
+                                    <a href="${fl.booking_url}" target="_blank" class="bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold px-4 py-2 rounded-lg border border-slate-700 transition">
+                                        Select Flight →
+                                    </a>
+                                </div>
                             </div>
                         </div>
 
@@ -819,6 +824,15 @@
                 console.error("Alert subscription failed:", err);
                 alert("Error subscribing to alerts. Please try again.");
             }
+        }
+
+        function shareFlightOnWhatsApp(idx) {
+            const fl = currentFlights[idx];
+            if (!fl) return;
+            const leg = fl.outbound_leg;
+            const text = `✈️ AeroScrape Shabbat-Safe & Kosher Flight Deal\nRoute: ${leg.origin} ➔ ${leg.destination}\nDate: ${new Date(leg.departure_time).toDateString()}\nAirline: ${leg.airline_name} (${leg.flight_number}) • $${fl.price.total_price.toFixed(2)}\n🕯️ Shabbos Safe Itinerary\n✔ Kosher Meal (KSML Available)\n🔗 Book here: ${fl.booking_url}`;
+            const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
         }
 
         function openKosherReportModal() {

@@ -239,4 +239,47 @@ def test_automated_production_engines():
     assert "hit_rate_pct" in cache_stats
 
 
+def test_calendar_and_share_generator():
+    """Verify 30-Day Halachic Fare Calendar and WhatsApp Share Summary generator."""
+    from aeroscrape.analytics.calendar import generate_month_calendar
+    from aeroscrape.marketing.share import generate_share_summary
+    from aeroscrape.models import FlightResult, FlightLeg, TripType, PriceBreakdown, CabinClass
+
+    # 1. Test 30-Day Calendar
+    cal = generate_month_calendar("ORL", "TLV", "2026-08")
+    assert cal.month_name == "August 2026"
+    assert len(cal.days) == 31
+    assert cal.cheapest_price_month > 0
+
+    # 2. Test Share Summary
+    leg = FlightLeg(
+        airline_code="W6",
+        airline_name="Wizz Air",
+        flight_number="W6104",
+        origin="ORL",
+        origin_city="Orlando",
+        destination="TLV",
+        destination_city="Tel Aviv",
+        departure_time=datetime.strptime("2026-08-14 20:15", "%Y-%m-%d %H:%M"),
+        arrival_time=datetime.strptime("2026-08-15 10:20", "%Y-%m-%d %H:%M"),
+        duration_minutes=830,
+        stops=1,
+        stop_airports=["MAD"],
+        aircraft="Boeing 787-9",
+        cabin_class=CabinClass.ECONOMY
+    )
+    res = FlightResult(
+        id="TEST-SHARE-1",
+        scraper_source="AeroScrape",
+        trip_type=TripType.ONE_WAY,
+        outbound_leg=leg,
+        price=PriceBreakdown.from_total(439.95, currency="USD"),
+        booking_url="https://tp.media/r?marker=760438.aeroscrape_web&p=4114&u=https%3A%2F%2Fwww.aviasales.com"
+    )
+    share = generate_share_summary(res)
+    assert "760438" in share["whatsapp_url"]
+    assert "439.95" in share["summary_text"]
+
+
+
 

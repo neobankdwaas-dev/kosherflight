@@ -19,6 +19,8 @@ from aeroscrape.compliance.kosher import list_all_kosher_airlines
 from aeroscrape.compliance.delay_risk import evaluate_route_delay_risk
 from aeroscrape.compliance.feedback import GLOBAL_KASHRUT_FEEDBACK_DB, KosherMealReport
 from aeroscrape.marketing.alerts import GLOBAL_FARE_ALERT_ENGINE
+from aeroscrape.marketing.share import generate_share_summary
+from aeroscrape.analytics.calendar import generate_month_calendar
 from aeroscrape.cache import GLOBAL_ROUTE_CACHE
 from aeroscrape.affiliates import GLOBAL_AFFILIATE_ENGINE
 
@@ -38,13 +40,28 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def normalize_vercel_path(request, call_next):
+    path = request.scope.get("path", "")
+    for prefix in ["/api/index.py", "/api/index", "/index.py", "/index"]:
+        if path.startswith(prefix):
+            path = path[len(prefix):]
+            if not path.startswith("/"):
+                path = "/" + path
+            request.scope["path"] = path
+            break
+    return await call_next(request)
+
+
 @app.get("/api/airports")
+@app.get("/airports", include_in_schema=False)
 def get_airports():
     """Returns list of major international airports and Jewish travel hubs."""
     return list_all_airports()
 
 
 @app.get("/api/airports/autocomplete")
+@app.get("/airports/autocomplete", include_in_schema=False)
 def get_airport_autocomplete(q: str = Query("", description="City name, airport code, or country")):
     """
     Autocomplete search for airports and metropolitan city areas (e.g. NYC, LON, PAR).
@@ -56,12 +73,14 @@ def get_airport_autocomplete(q: str = Query("", description="City name, airport 
 
 
 @app.get("/api/kosher-airlines")
+@app.get("/kosher-airlines", include_in_schema=False)
 def get_kosher_airlines():
     """Returns the complete Kosher Meal (KSML / SKML) database for all airlines."""
     return list_all_kosher_airlines()
 
 
 @app.get("/api/zmanim")
+@app.get("/zmanim", include_in_schema=False)
 def get_zmanim(airport: str = Query(..., description="3-letter IATA airport code"), date: str = Query(..., description="YYYY-MM-DD")):
     """Calculates Sunset, Candle Lighting, and Havdalah times for an airport."""
     try:
@@ -89,6 +108,7 @@ def get_zmanim(airport: str = Query(..., description="3-letter IATA airport code
 
 
 @app.get("/api/search")
+@app.get("/search", include_in_schema=False)
 def search_flights(
     origin: str = Query("JFK"),
     destination: str = Query("TLV"),
@@ -136,13 +156,68 @@ def search_flights(
 
 
 @app.get("/api/delay-risk")
+@app.get("/delay-risk", include_in_schema=False)
 def get_delay_risk(origin: str = Query("JFK"), destination: str = Query("TLV"), base_buffer_hours: float = Query(3.0)):
     """Returns historical route delay risk and automatically adjusted Halachic safety buffer."""
     assessment = evaluate_route_delay_risk(origin, destination, base_buffer_hours)
     return assessment.model_dump()
 
 
+@app.get("/api/calendar")
+@app.get("/calendar", include_in_schema=False)
+def get_month_calendar(
+    origin: str = Query("JFK"),
+    destination: str = Query("TLV"),
+    year_month: str = Query("2026-08"),
+    cabin_class: str = Query("economy"),
+    passengers: int = Query(1)
+):
+    """Returns a 30-day Halachic fare calendar showing daily lowest prices and Shabbat safety indicators."""
+    cal = generate_month_calendar(origin, destination, year_month, cabin_class, passengers)
+    return cal.model_dump()
+
+
+@app.get("/api/share")
+@app.get("/share", include_in_schema=False)
+def get_share_links(
+    origin: str = Query("JFK"),
+    destination: str = Query("TLV"),
+    date: str = Query("2026-08-14"),
+    airline: str = Query("IB"),
+    flight_num: str = Query("IB440"),
+    price: float = Query(533.81)
+):
+    """Returns WhatsApp-ready and printable text summaries for sharing flight deals."""
+    from aeroscrape.models import FlightResult, FlightLeg, TripType, PriceBreakdown, CabinClass
+    leg = FlightLeg(
+        airline_code=airline.upper(),
+        airline_name=f"Airline ({airline})",
+        flight_number=flight_num,
+        origin=origin.upper(),
+        origin_city=f"City ({origin})",
+        destination=destination.upper(),
+        destination_city=f"City ({destination})",
+        departure_time=datetime.strptime(f"{date} 20:15", "%Y-%m-%d %H:%M"),
+        arrival_time=datetime.strptime(f"{date} 10:20", "%Y-%m-%d %H:%M"),
+        duration_minutes=830,
+        stops=1,
+        stop_airports=["MAD"],
+        aircraft="Boeing 787-9",
+        cabin_class=CabinClass.ECONOMY
+    )
+    res = FlightResult(
+        id="SHARE-DEMO-1",
+        scraper_source="AeroScrape",
+        trip_type=TripType.ONE_WAY,
+        outbound_leg=leg,
+        price=PriceBreakdown.from_total(price, currency="USD"),
+        booking_url=f"https://tp.media/r?marker=760438.aeroscrape_web&p=4114&u=https%3A%2F%2Fwww.aviasales.com%2Fsearch%2F1408{origin}{destination}1"
+    )
+    return generate_share_summary(res)
+
+
 @app.get("/api/kosher-reports")
+@app.get("/kosher-reports", include_in_schema=False)
 def get_kosher_reports(airline: Optional[str] = Query(None)):
     """Returns community-submitted Kosher meal (KSML) audit reports and satisfaction scores."""
     if airline and airline.strip() != "":
@@ -152,6 +227,7 @@ def get_kosher_reports(airline: Optional[str] = Query(None)):
 
 
 @app.post("/api/kosher-report")
+@app.post("/kosher-report", include_in_schema=False)
 def submit_kosher_report(report: KosherMealReport):
     """Submits a new community Kosher meal experience audit report."""
     rep_id = GLOBAL_KASHRUT_FEEDBACK_DB.add_report(report)
@@ -159,6 +235,7 @@ def submit_kosher_report(report: KosherMealReport):
 
 
 @app.post("/api/alerts/subscribe")
+@app.post("/alerts/subscribe", include_in_schema=False)
 def subscribe_to_alerts(
     email: str = Query(...),
     origin: str = Query("JFK"),
@@ -172,6 +249,7 @@ def subscribe_to_alerts(
 
 
 @app.get("/api/alerts/subscribers")
+@app.get("/alerts/subscribers", include_in_schema=False)
 def list_subscribers():
     """Returns active fare alert subscribers (Admin monitoring)."""
     subs = GLOBAL_FARE_ALERT_ENGINE.get_subscribers()
@@ -179,18 +257,21 @@ def list_subscribers():
 
 
 @app.get("/api/cache/stats")
+@app.get("/cache/stats", include_in_schema=False)
 def get_cache_stats():
     """Returns live high-performance route cache hit/miss statistics."""
     return GLOBAL_ROUTE_CACHE.get_stats()
 
 
 @app.get("/api/affiliate/status")
+@app.get("/affiliate/status", include_in_schema=False)
 def get_affiliate_status():
     """Returns current active affiliate CPA tracking network and Marker ID."""
     return GLOBAL_AFFILIATE_ENGINE.get_config().model_dump()
 
 
 @app.post("/api/affiliate/config")
+@app.post("/affiliate/config", include_in_schema=False)
 def update_affiliate_config(marker_id: str = Query(...), network: str = Query("travelpayouts")):
     """Updates the affiliate CPA tracking Marker ID and network."""
     GLOBAL_AFFILIATE_ENGINE.set_marker(marker_id, network)
