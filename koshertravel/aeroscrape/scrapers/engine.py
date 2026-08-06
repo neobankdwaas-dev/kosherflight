@@ -72,14 +72,31 @@ class AeroScrapeEngine:
         for orig in origin_airports:
             for dest in dest_airports:
                 sub_query = query.model_copy(update={"origin": orig, "destination": dest})
+                live_results = []
                 for scraper in self.scrapers:
-                    if scraper.name not in scrapers_queried:
-                        scrapers_queried.append(scraper.name)
-                    try:
-                        res = scraper.search_flights(sub_query)
-                        raw_results.extend(res)
-                    except Exception as e:
-                        print(f"[Warning] Scraper '{scraper.name}' failed for {orig}-{dest}: {e}")
+                    if "Live" in scraper.name:
+                        if scraper.name not in scrapers_queried:
+                            scrapers_queried.append(scraper.name)
+                        try:
+                            res = scraper.search_flights(sub_query)
+                            live_results.extend(res)
+                        except Exception as e:
+                            print(f"[Warning] Scraper '{scraper.name}' failed for {orig}-{dest}: {e}")
+                
+                if live_results:
+                    # STRICT LIVE-ONLY MODE: Never mix with simulated backup flights when live flights are found!
+                    raw_results.extend(live_results)
+                else:
+                    # Fallback to backup simulation ONLY when live network fetch fails or during offline tests
+                    for scraper in self.scrapers:
+                        if "Live" not in scraper.name:
+                            if scraper.name not in scrapers_queried:
+                                scrapers_queried.append(scraper.name)
+                            try:
+                                res = scraper.search_flights(sub_query)
+                                raw_results.extend(res)
+                            except Exception as e:
+                                print(f"[Warning] Scraper '{scraper.name}' failed for {orig}-{dest}: {e}")
 
         # 2. Deduplicate similar flights (same airline + origin + dest + approx departure time)
         dedup_map: Dict[str, FlightResult] = {}

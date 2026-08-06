@@ -35,6 +35,48 @@ LEGITIMATE_AIRLINES = [
 ]
 
 
+def _get_airlines_for_route(origin: str, dest: str) -> List[dict]:
+    orig = origin.upper().strip()
+    dst = dest.upper().strip()
+
+    latam_airports = {"GRU", "CGH", "GIG", "SDU", "EZE", "AEP", "BOG", "LIM", "SCL", "PTY", "MEX", "CUN", "BEL", "VCP"}
+    if orig in latam_airports or dst in latam_airports:
+        return [
+            {"code": "CM", "name": "COPA Airlines", "base_mult": 0.95, "hubs": ["PTY"], "direct_chance": 0.6},
+            {"code": "AV", "name": "Avianca", "base_mult": 0.92, "hubs": ["BOG"], "direct_chance": 0.7},
+            {"code": "LA", "name": "LATAM Airlines", "base_mult": 0.98, "hubs": ["GRU", "SCL", "LIM"], "direct_chance": 0.7},
+            {"code": "G3", "name": "Gol Linhas Aereas", "base_mult": 0.89, "hubs": ["GRU", "CGH"], "direct_chance": 0.5},
+            {"code": "AA", "name": "American Airlines", "base_mult": 1.05, "hubs": ["MIA", "DFW"], "direct_chance": 0.4},
+            {"code": "DL", "name": "Delta Air Lines", "base_mult": 1.08, "hubs": ["ATL"], "direct_chance": 0.4},
+            {"code": "IB", "name": "Iberia", "base_mult": 1.02, "hubs": ["MAD"], "direct_chance": 0.3},
+        ]
+
+    eu_airports = {"LHR", "LGW", "LTN", "STN", "CDG", "ORY", "FRA", "MUC", "ZRH", "GVA", "AMS", "FCO", "MXP", "MAD", "BCN", "ATH", "BUD", "WAW", "VIE"}
+    if orig in eu_airports and dst in {"TLV", "ETH"}:
+        return [
+            {"code": "LY", "name": "El Al Israel Airlines", "base_mult": 1.05, "hubs": ["TLV"], "direct_chance": 0.9},
+            {"code": "BA", "name": "British Airways", "base_mult": 1.02, "hubs": ["LHR"], "direct_chance": 0.8},
+            {"code": "LH", "name": "Lufthansa", "base_mult": 0.98, "hubs": ["FRA"], "direct_chance": 0.8},
+            {"code": "AF", "name": "Air France", "base_mult": 0.99, "hubs": ["CDG"], "direct_chance": 0.8},
+            {"code": "LX", "name": "Swiss International Air Lines", "base_mult": 1.03, "hubs": ["ZRH"], "direct_chance": 0.8},
+            {"code": "W6", "name": "Wizz Air", "base_mult": 0.75, "hubs": ["LTN", "BUD"], "direct_chance": 0.7},
+            {"code": "U2", "name": "easyJet", "base_mult": 0.78, "hubs": ["LGW"], "direct_chance": 0.7},
+            {"code": "FR", "name": "Ryanair", "base_mult": 0.77, "hubs": ["STN", "FCO"], "direct_chance": 0.7},
+        ]
+
+    return [
+        {"code": "LY", "name": "El Al Israel Airlines", "base_mult": 1.02, "hubs": ["TLV"], "direct_chance": 0.9},
+        {"code": "UA", "name": "United Airlines", "base_mult": 0.98, "hubs": ["EWR", "ORD"], "direct_chance": 0.8},
+        {"code": "DL", "name": "Delta Air Lines", "base_mult": 1.01, "hubs": ["JFK", "ATL"], "direct_chance": 0.8},
+        {"code": "AA", "name": "American Airlines", "base_mult": 0.97, "hubs": ["JFK", "MIA"], "direct_chance": 0.7},
+        {"code": "BA", "name": "British Airways", "base_mult": 0.99, "hubs": ["LHR"], "direct_chance": 0.5},
+        {"code": "LH", "name": "Lufthansa", "base_mult": 0.96, "hubs": ["FRA"], "direct_chance": 0.5},
+        {"code": "AF", "name": "Air France", "base_mult": 0.98, "hubs": ["CDG"], "direct_chance": 0.5},
+        {"code": "LX", "name": "Swiss International Air Lines", "base_mult": 1.04, "hubs": ["ZRH"], "direct_chance": 0.5},
+        {"code": "VS", "name": "Virgin Atlantic", "base_mult": 0.95, "hubs": ["LHR"], "direct_chance": 0.5},
+    ]
+
+
 def _estimate_flight_duration(origin: str, dest: str) -> int:
     o_info = get_airport(origin)
     d_info = get_airport(dest)
@@ -162,12 +204,7 @@ class GoogleFlightsScraper(FlightScraper):
         seed_str = f"GF-{origin}-{dest}-{query.departure_date}"
         seed_hash = int(hashlib.md5(seed_str.encode()).hexdigest(), 16)
 
-        route_airlines = []
-        for idx, airline in enumerate(LEGITIMATE_AIRLINES):
-            if origin in airline["hubs"] or dest in airline["hubs"] or idx % 2 == (seed_hash % 2):
-                route_airlines.append(airline)
-        if len(route_airlines) < 4:
-            route_airlines = LEGITIMATE_AIRLINES[:5]
+        route_airlines = _get_airlines_for_route(origin, dest)
 
         for idx, airline in enumerate(route_airlines[:6]):
             outbound_leg = _generate_leg(origin, dest, query.departure_date, airline, idx, seed_hash, cabin)

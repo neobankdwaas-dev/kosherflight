@@ -281,5 +281,15 @@ def test_calendar_and_share_generator():
     assert "439.95" in share["summary_text"]
 
 
+def test_multi_currency_conversion():
+    """Verify multi-currency conversion across USD, ILS, and BRL."""
+    from aeroscrape.models import convert_price, CURRENCY_RATES
+    ils_val = convert_price(100.0, "ILS")
+    assert ils_val == round(100.0 * CURRENCY_RATES["ILS"], 2)
+    brl_val = convert_price(100.0, "BRL")
+    assert brl_val == round(100.0 * CURRENCY_RATES["BRL"], 2)
+
+
+
 
 
