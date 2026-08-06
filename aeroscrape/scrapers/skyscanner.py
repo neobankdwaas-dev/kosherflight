@@ -15,7 +15,7 @@ from aeroscrape.models import (
 )
 from aeroscrape.airports import get_airport
 from aeroscrape.scrapers.base import FlightScraper
-from aeroscrape.scrapers.google_flights import _estimate_flight_duration, _calculate_base_fare, _generate_leg
+from aeroscrape.scrapers.google_flights import _estimate_flight_duration, _calculate_base_fare, _generate_leg, _get_airlines_for_route
 from aeroscrape.affiliates import GLOBAL_AFFILIATE_ENGINE
 
 
@@ -84,8 +84,9 @@ class SkyscannerScraper(FlightScraper):
 
         seed_str = f"SKY-{origin}-{dest}-{query.departure_date}"
         seed_hash = int(hashlib.md5(seed_str.encode()).hexdigest(), 16)
+        route_airlines = _get_airlines_for_route(origin, dest)
 
-        for idx, airline in enumerate(SKYSCANNER_AIRLINES):
+        for idx, airline in enumerate(route_airlines[:4]):
             outbound_leg = _generate_leg(origin, dest, query.departure_date, airline, idx, seed_hash, cabin)
 
             price_mult = airline["base_mult"]

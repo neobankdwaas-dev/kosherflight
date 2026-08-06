@@ -5,3 +5,4 @@ requests>=2.31.0
 beautifulsoup4>=4.12.0
 pytest>=8.0.0
 rich>=13.7.0
+fast-flights>=1.0.0

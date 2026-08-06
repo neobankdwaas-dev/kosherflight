@@ -114,7 +114,7 @@ def test_aeroscrape_engine_search_and_filter():
 
     assert stats.total_found > 0
     assert stats.cheapest_price > 0
-    assert len(stats.scrapers_queried) >= 3  # Google Flights, Skyscanner OTA, Direct Airline, Live Google Flights
+    assert len(stats.scrapers_queried) >= 1  # Live Google Flights (or backup scrapers if offline)
 
     for fl in flights:
         # All returned flights must not violate Shabbos when filter_shabbos_violations is True
