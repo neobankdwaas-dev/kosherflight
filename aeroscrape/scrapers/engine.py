@@ -15,6 +15,7 @@ from aeroscrape.models import (
 )
 from aeroscrape.airports import expand_city_to_airports
 from aeroscrape.scrapers.base import FlightScraper
+from aeroscrape.scrapers.live_google_flights import LiveGoogleFlightsScraper
 from aeroscrape.scrapers.google_flights import GoogleFlightsScraper
 from aeroscrape.scrapers.skyscanner import SkyscannerScraper
 from aeroscrape.scrapers.airline_direct import DirectAirlineScraper
@@ -32,6 +33,7 @@ class AeroScrapeEngine:
     def __init__(self, scrapers: Optional[List[FlightScraper]] = None):
         if scrapers is None:
             self.scrapers = [
+                LiveGoogleFlightsScraper(),
                 GoogleFlightsScraper(),
                 SkyscannerScraper(),
                 DirectAirlineScraper(),

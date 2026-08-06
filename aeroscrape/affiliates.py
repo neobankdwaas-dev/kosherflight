@@ -61,20 +61,20 @@ class AffiliateLinkEngine:
 
         # 1. Travelpayouts (Aviasales / WayAway / Kiwi aggregator)
         if self.network == "travelpayouts" and self.marker_id:
-            # Format Aviasales search route string: e.g. "1408JFKTLV1" (DDMM + Origin + Dest + Pax)
             try:
                 parts = date.split("-")  # YYYY-MM-DD
                 ddmm = f"{parts[2]}{parts[1]}"
             except Exception:
                 ddmm = "1408"
             
-            route_slug = f"{ddmm}{orig}{dest}{passengers}"
-            if return_date:
+            route_slug = f"{orig}{ddmm}{dest}"
+            if return_date and return_date.strip() != "":
                 try:
                     r_parts = return_date.split("-")
                     route_slug += f"{r_parts[2]}{r_parts[1]}"
                 except Exception:
                     pass
+            route_slug += f"{passengers}"
             
             target_url = f"https://www.aviasales.com/search/{route_slug}"
             encoded_target = urllib.parse.quote(target_url, safe="")

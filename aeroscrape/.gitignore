@@ -28,3 +28,4 @@ ENV/
 env/
 *.log
 .DS_Store
+.npm/
