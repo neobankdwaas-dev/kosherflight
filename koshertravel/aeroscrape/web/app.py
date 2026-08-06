@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 
-from aeroscrape.models import FlightQuery, CabinClass
+from aeroscrape.models import FlightQuery, CabinClass, TripType
 from aeroscrape.scrapers.engine import AeroScrapeEngine
 from aeroscrape.analytics.price_analyzer import analyze_price_trend
 from aeroscrape.airports import list_all_airports, get_airport, search_airports

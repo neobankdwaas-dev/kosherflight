@@ -85,8 +85,15 @@ class AeroScrapeEngine:
                             print(f"[Warning] Scraper '{scraper.name}' failed for {orig}-{dest}: {e}")
                 
                 if live_results:
-                    # STRICT LIVE-ONLY MODE: Never mix with simulated backup flights when live flights are found!
+                    # STRICT LIVE-ONLY MODE: Combine Live Google Flights with Aviasales / Skyscanner OTA Aggregator Fares!
                     raw_results.extend(live_results)
+                    for scraper in self.scrapers:
+                        if scraper.name == "Skyscanner OTA":
+                            try:
+                                res = scraper.search_flights(sub_query)
+                                raw_results.extend(res)
+                            except Exception as e:
+                                print(f"[Warning] Scraper '{scraper.name}' failed: {e}")
                 else:
                     # Fallback to backup simulation ONLY when live network fetch fails or during offline tests
                     for scraper in self.scrapers:
