@@ -1,10 +1,12 @@
 {
-  "buildCommand": "",
-  "framework": null,
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py/api/$1"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py/$1"
     }
   ]
 }
